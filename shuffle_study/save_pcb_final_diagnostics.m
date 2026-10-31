@@ -1,4 +1,4 @@
-% 用途：导出训练结束时E神经元的朝向选择性、感受野、放电率和逐刺激响应数据及图像。
+% 用途：保存训练结束时E神经元的朝向选择性、感受野、放电率和raster plot
 function files = save_pcb_final_diagnostics(result,run_dir,stem)
 
 d = result.final_diagnostics;

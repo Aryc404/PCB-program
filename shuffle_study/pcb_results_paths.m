@@ -1,4 +1,4 @@
-% 用途：根据本程序位置统一生成PCB结果目录，并将已知旧结果目录映射到整理后的目录。
+% 用途：生成PCB消融实验结果目录
 function [paths,output_root] = pcb_results_paths(requested_root,kind)
 if nargin < 1, requested_root = ''; end
 if nargin < 2, kind = 'scaling'; end

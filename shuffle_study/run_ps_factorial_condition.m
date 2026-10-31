@@ -1,4 +1,5 @@
-% 用途：执行单个消融条件的脉冲网络训练、突触学习、阈值与L1更新，保存检查点并按配置测量稀疏性、感受野和E/I平衡。
+% 用途：执行每个条件的脉冲网络训练、突触学习、自适应阈值与L1 normalization机制
+% 保存检查点并按配置测量稀疏性、感受野和E/I平衡。
 function result = run_ps_factorial_condition(mode, condition, options)
 
 if nargin < 1 || isempty(mode)
@@ -47,9 +48,6 @@ state = initialise_network(cfg);
     state,cfg,condition,options);
 checkpoints = cfg.checkpoints(:);
 result = initialise_result(cfg, condition, checkpoints, options);
-if options.save_final_state
-    result.initial_state = state;
-end
 
 fprintf('\nCondition: %s (%s)\n', condition.id, cfg.mode);
 next_checkpoint = 1;
@@ -127,14 +125,10 @@ if options.measure_standard_metrics
     end
     result.final_ps = result.PS_E(end);
 end
-if options.save_final_state
-    result.final_state = state;
-end
 end
 
 function options = fill_options(options)
 defaults.run_window_experiment = false;
-defaults.save_final_state = false;
 defaults.measure_standard_metrics = true;
 defaults.measure_extended_metrics = true;
 defaults.measure_final_diagnostics = false;
@@ -280,6 +274,9 @@ end
 
 function cfg = make_config(mode)
 cfg.mode = lower(char(mode));
+if ~strcmp(cfg.mode,'paper')
+    error('PCB:UnsupportedMode','Only the paper experiment is supported.');
+end
 cfg.seed = 20250718;
 cfg.eval_patch_seed = 12025;
 cfg.eval_dynamics_seed = 22025;
@@ -303,44 +300,17 @@ cfg.eta_tE = 1; cfg.eta_tI = 1;
 cfg.L1_EX = 100; cfg.L1_EE = 10; cfg.L1_EI = 120;
 cfg.L1_IX = 80; cfg.L1_IE = 240; cfg.L1_II = 120;
 
-switch cfg.mode
-    case 'paper'
-        cfg.N_pixels = 16^2; cfg.N_X = cfg.N_pixels;
-        cfg.N_E = 20^2; cfg.N_I = cfg.N_E/4;
-        cfg.N_b = 100; cfg.N_eval = 100; cfg.N_t = 400;
-        cfg.N_q = 100; cfg.N_n = 1200; cfg.eval_every = 100;
-        cfg.halve_at_1 = 400; cfg.halve_at_2 = 800;
-        cfg.window_steps = [50 100 200 400];
-        cfg.window_repeats = 20;
-        cfg.grating_eval_repeats = 5;
-        cfg.grating_orientations_deg = 0:22.5:157.5;
-        cfg.grating_spatial_frequencies = [1 2 3];
-        cfg.grating_phases_deg = [0 90 180 270];
-    case 'quick'
-        cfg.N_pixels = 8^2; cfg.N_X = cfg.N_pixels;
-        cfg.N_E = 10^2; cfg.N_I = cfg.N_E/4;
-        cfg.N_b = 8; cfg.N_eval = 16; cfg.N_t = 50;
-        cfg.N_q = 2; cfg.N_n = 6; cfg.eval_every = 2;
-        cfg.halve_at_1 = 3; cfg.halve_at_2 = 5;
-        cfg.window_steps = unique(max(1, round(cfg.N_t * [0.125 0.25 0.5 1])));
-        cfg.window_repeats = 3;
-        cfg.grating_eval_repeats = 1;
-        cfg.grating_orientations_deg = 0:45:135;
-        cfg.grating_spatial_frequencies = [1 2];
-        cfg.grating_phases_deg = [0 90];
-
-        scale_X = sqrt(cfg.N_X / 16^2);
-        scale_E = sqrt(cfg.N_E / 20^2);
-        scale_I = sqrt(cfg.N_I / 100);
-        cfg.L1_EX = cfg.L1_EX * scale_X;
-        cfg.L1_IX = cfg.L1_IX * scale_X;
-        cfg.L1_EE = cfg.L1_EE * scale_E;
-        cfg.L1_IE = cfg.L1_IE * scale_E;
-        cfg.L1_EI = cfg.L1_EI * scale_I;
-        cfg.L1_II = cfg.L1_II * scale_I;
-    otherwise
-        error('Mode must be ''quick'' or ''paper''.');
-end
+cfg.N_pixels = 16^2; cfg.N_X = cfg.N_pixels;
+cfg.N_E = 20^2; cfg.N_I = cfg.N_E/4;
+cfg.N_b = 100; cfg.N_eval = 100; cfg.N_t = 400;
+cfg.N_q = 100; cfg.N_n = 1200; cfg.eval_every = 100;
+cfg.halve_at_1 = 400; cfg.halve_at_2 = 800;
+cfg.window_steps = [50 100 200 400];
+cfg.window_repeats = 20;
+cfg.grating_eval_repeats = 5;
+cfg.grating_orientations_deg = 0:22.5:157.5;
+cfg.grating_spatial_frequencies = [1 2 3];
+cfg.grating_phases_deg = [0 90 180 270];
 
 cfg.T = cfg.N_t * cfg.dt;
 cfg.rho_E = cfg.rho_E_Hz * cfg.T;
@@ -1488,4 +1458,33 @@ else
     fprintf('  batch %4d | training checkpoint; evaluation skipped\n', ...
         result.batch(index));
 end
+end
+
+function [mean_ps, ps_each, silent_fraction] = modified_treves_rolls( ...
+        response, finite_population_correction)
+
+if nargin < 2 || isempty(finite_population_correction)
+    finite_population_correction = true;
+end
+
+mean_r = mean(response, 1);
+mean_r2 = mean(response .^ 2, 1);
+ps_each = 1 - (mean_r .^ 2) ./ mean_r2;
+ps_each(mean_r2 == 0) = NaN;
+
+if finite_population_correction
+    population_size = size(response, 1);
+    if population_size <= 1
+        error('Finite-population correction requires at least two rows.');
+    end
+    ps_each = ps_each / (1 - 1 / population_size);
+end
+
+valid = ~isnan(ps_each);
+if any(valid)
+    mean_ps = mean(ps_each(valid));
+else
+    mean_ps = NaN;
+end
+silent_fraction = mean(~valid);
 end

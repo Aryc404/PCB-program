@@ -98,17 +98,6 @@ These values ​​limit the total weight of a specific type of connection recei
 - `state.W_IE`: Matrix representing synaptic weights from E to I; size: 100×400.
 - `state.W_II`: Matrix representing synaptic weights from I to I; the diagonal is set to 0 because self-connections among I neurons are not permitted; size: 100×100.
 
-# Variables related to initial weights
-
-- `cfg.strong_connection_probability`: Probability used when initializing the weight structure; set to 0.2 in the program, meaning 20% ​​of synapses are designated as strong connections and 80% as weak connections.
-
-- `result.initial_state.W_EX`: Pre-training synaptic weight matrix from X to E; size: 400×512.
-- `result.initial_state.W_EE`: Pre-training synaptic weight matrix from E to E; size: 400×400.
-- `result.initial_state.W_EI`: Pre-training synaptic weight matrix from I to E; size: 400×100.
-- `result.initial_state.W_IX`: Pre-training synaptic weight matrix from X to I; size: 100×512.
-- `result.initial_state.W_IE`: Pre-training synaptic weight matrix from E to I; size: 100×400.
-- `result.initial_state.W_II`: Pre-training synaptic weight matrix from I to I; size: 100×100.
-
 # Weight and Threshold Update Increments
 
 - `stats.dW_EX`: Matrix of accumulated changes in X-to-E synaptic weights for a single batch; size: 400×512.
@@ -177,9 +166,6 @@ Synaptic traces are used to record recent spiking history, ensuring that weight 
 # pcb_shuffle_conditions.m
     Defines the A--G ablation switches and combines them into the twelve experimental conditions used by the shuffle experiments.
 
-# modified_treves_rolls.m
-    Calculates sparseness and optionally applies the finite-population correction used for PS and LS.
-
 # plot_pcb_shuffle_existing_results.m
     Reads the existing cn=1--3 result files and generates the twelve condition-comparison figures for RF correlation, LS, and PS.
 
@@ -203,7 +189,15 @@ Synaptic traces are used to record recent spiking history, ensuring that weight 
 
 - 现有程序目录为 `shuffle_study`、`result analysis`、`avalanche experiment`。程序使用自身位置计算项目路径；文件夹名称中的空格和中文可以保留。
 - `main.m`从它所在目录读取`VanHateren_DoG_small.mat`，无需把MATLAB当前工作目录切换到项目根目录。
-- `shuffle_study`的10个MATLAB文件只在文件开头保留用途说明，内部注释已清理。
+- `shuffle_study`的9个MATLAB文件只在文件开头保留用途说明，内部注释已清理。
 - `plot_pcb_shuffle_existing_results`优先使用本项目的结果目录，缺失时仍兼容原Nutstore和D盘历史目录；外部或改名后的历史结果可通过第二个参数指定，例如`plot_pcb_shuffle_existing_results('english','D:/实验结果/results')`。该程序需要历史cn=1十种子数据以及cn=2、cn=3相关结果。
 - 当前副本未包含`shuffle_study/pcb_shuffle_study/results`训练结果目录。结果分析和历史绘图仍需先训练或补齐所需数据；缺失数据不属于文件夹改名造成的路径错误。
 - 雪崩实验的`input`中已有AD检查点，入口仍为`avalanche experiment/run_ad_avalanche_experiment.m`。
+
+## 2026-11-01：标准实验入口
+
+训练程序仅支持`paper`标准实验。保留原有函数调用方式，例如`run_pcb_shuffle_all('paper',options)`或`run_pcb_shuffle_experiment('paper','A','D',options)`；其他模式会在开始训练前报错。
+
+cn=1默认使用16×16图像、400个E神经元和100个I神经元，每批100张图像、每张呈现400 ms，共训练1200批。训练指标按0:100:1200记录；默认E/I平衡候选数和测量设置沿用标准实验。
+
+Treves–Rolls稀疏性计算已作为局部函数放入`run_ps_factorial_condition.m`，不再依赖单独的`modified_treves_rolls.m`文件，计算公式和静默响应处理保持一致。

@@ -1,4 +1,4 @@
-% 用途：运行指定的单个或多个PCB消融条件，配置训练与评估参数，调用仿真核心并保存CSV和MAT结果。
+% 用途：运行指定的消融条件，配置训练与评估参数，并保存CSV和MAT结果。
 function summary = run_pcb_shuffle_experiment(mode, inhibitory_selection, ...
         homeostatic_selection, user_options)
 
@@ -16,8 +16,8 @@ if nargin < 4
 end
 
 mode = lower(char(mode));
-if ~ismember(mode, {'quick','paper'})
-    error('Mode must be ''quick'' or ''paper''.');
+if ~strcmp(mode,'paper')
+    error('PCB:UnsupportedMode','Only the paper experiment is supported.');
 end
 
 definitions = pcb_shuffle_conditions();
@@ -27,15 +27,9 @@ homeostatic_codes = expand_selection(homeostatic_selection, ...
     definitions.valid_homeostatic_codes, 'D/E/F/G');
 options = fill_runner_options(user_options, definitions, mode);
 
-code_dir = fileparts(mfilename('fullpath'));
-study_dir = fullfile(code_dir, 'pcb_shuffle_study');
 if isempty(options.output_root)
-    if strcmp(mode, 'quick')
-        output_root = fullfile(study_dir, 'cache', 'quick_validation');
-    else
-        paths = pcb_results_paths();
-        output_root = paths.scaling;
-    end
+    paths = pcb_results_paths();
+    output_root = paths.scaling;
 else
     [~,output_root] = pcb_results_paths(options.output_root);
 end
@@ -46,8 +40,6 @@ mat_dir = fullfile(run_dir, 'mat');
 ensure_directories({csv_dir,mat_dir});
 
 run_options.run_window_experiment = false;
-run_options.save_final_state = strcmp(mode, 'quick') && ...
-    ~options.balance_only;
 run_options.measure_standard_metrics = ~options.balance_only;
 run_options.measure_extended_metrics = false;
 run_options.measure_final_diagnostics = options.final_diagnostics && ...
@@ -75,7 +67,7 @@ run_options.training_checkpoint_stem = options.training_checkpoint_stem;
 run_options.balance_checkpoint_file = options.balance_checkpoint_file;
 run_options.resume_training = options.resume_training;
 run_options.network_scale_override = options.network_scale;
-run_options.checkpoints_override = checkpoint_batches(mode);
+run_options.checkpoints_override = checkpoint_batches();
 if options.balance_only
     run_options.checkpoints_override = ...
         run_options.checkpoints_override(end);
@@ -100,7 +92,7 @@ for i = 1:numel(inhibitory_codes)
         fprintf('\n[%d/%d] %s: %s\n', ...
             index,n_conditions,condition.id,condition.display_name);
         result = run_ps_factorial_condition(mode,condition,run_options);
-        validate_result(result,condition,mode);
+        validate_result(result,condition);
         results{index} = result;
         tables{index} = checkpoint_table(result,options);
         if ~options.defer_save
@@ -134,12 +126,8 @@ fprintf('\nCompleted %d condition(s). Outputs:\n%s\n', ...
     n_conditions,run_dir);
 end
 
-function batches = checkpoint_batches(mode)
-if strcmp(mode,'paper')
-    batches = 0:100:1200;
-else
-    batches = 0:2:6;
-end
+function batches = checkpoint_batches()
+batches = 0:100:1200;
 end
 
 function codes = expand_selection(selection, valid_codes, label)
@@ -215,19 +203,11 @@ end
 if ~isfield(options,'balance_seed')
     options.balance_seed = 3202603;
 end
-if strcmp(mode,'quick')
-    balance_defaults = struct('neuron_count',8, ...
-        'example_candidates',32,'population_candidates',12, ...
-        'scatter_candidates',12, ...
-        'tight_candidates',32,'tight_top_k',4, ...
-        'max_lag_ms',10,'transient_ms',10);
-else
-    balance_defaults = struct('neuron_count',40, ...
-        'example_candidates',1000,'population_candidates',100, ...
-        'scatter_candidates',100, ...
-        'tight_candidates',1000,'tight_top_k',10, ...
-        'max_lag_ms',50,'transient_ms',100);
-end
+balance_defaults = struct('neuron_count',40, ...
+    'example_candidates',1000,'population_candidates',100, ...
+    'scatter_candidates',100, ...
+    'tight_candidates',1000,'tight_top_k',10, ...
+    'max_lag_ms',50,'transient_ms',100);
 balance_fields = fieldnames(balance_defaults);
 for field_index = 1:numel(balance_fields)
     name = balance_fields{field_index};
@@ -319,9 +299,9 @@ if isfield(result,'final_diagnostics')
 end
 end
 
-function validate_result(result,condition,mode)
+function validate_result(result,condition)
 if result.options.measure_standard_metrics
-    expected_batches = checkpoint_batches(mode)';
+    expected_batches = checkpoint_batches()';
     if ~isequal(result.batch(:),expected_batches)
         error('Condition %s did not record the expected checkpoints.', ...
             condition.id);
@@ -341,7 +321,7 @@ if result.options.measure_standard_metrics
         error('Corrected sparseness is outside [0,1] for %s.',condition.id);
     end
 else
-    expected_final_batch = checkpoint_batches(mode);
+    expected_final_batch = checkpoint_batches();
     if ~isscalar(result.batch) || ...
             result.batch ~= expected_final_batch(end)
         error('Balance-only condition %s must retain only the final batch.', ...
@@ -363,38 +343,6 @@ if result.options.measure_ei_balance && ~isfield(result,'ei_balance')
     error('Final E/I balance diagnostics are missing for %s.',condition.id);
 end
 
-if strcmp(mode,'quick') && ~result.options.balance_only
-    initial = result.initial_state;
-    final = result.final_state;
-    wei_change = max(abs(final.W_EI(:)-initial.W_EI(:)));
-    if condition.inhibitory_plasticity_enabled && wei_change <= 1e-12
-        error('Condition %s should update W_EI but did not.',condition.id);
-    elseif ~condition.inhibitory_plasticity_enabled && wei_change > 1e-12
-        error('Condition %s changed W_EI while plasticity was OFF.', ...
-            condition.id);
-    end
-    threshold_change = max(abs(final.theta_E-initial.theta_E));
-    if condition.threshold_enabled && threshold_change <= 1e-12
-        error('Condition %s should adapt thresholds but did not.', ...
-            condition.id);
-    elseif ~condition.threshold_enabled && threshold_change > 1e-12
-        error('Condition %s changed fixed thresholds.',condition.id);
-    end
-    if condition.l1_normalization_enabled
-        assert_l1_bound(final.W_EX,result.cfg.L1_EX,condition.id,'W_EX');
-        assert_l1_bound(final.W_EE,result.cfg.L1_EE,condition.id,'W_EE');
-        assert_l1_bound(final.W_EI,result.cfg.L1_EI,condition.id,'W_EI');
-        assert_l1_bound(final.W_IX,result.cfg.L1_IX,condition.id,'W_IX');
-        assert_l1_bound(final.W_IE,result.cfg.L1_IE,condition.id,'W_IE');
-        assert_l1_bound(final.W_II,result.cfg.L1_II,condition.id,'W_II');
-    end
-end
-end
-
-function assert_l1_bound(W,bound,condition_id,name)
-if any(sum(W,2) > bound + 1e-8)
-    error('%s exceeds its L1 bound in condition %s.',name,condition_id);
-end
 end
 
 function plot_condition_trajectory(result,output_file)

@@ -1,4 +1,4 @@
-% 用途：读取cn=1至3的历史结果，绘制12张感受野相关性、时间稀疏性和群体稀疏性对比图；第二个参数可指定结果目录。
+% 用途：读取cn=1至3的历史结果，绘制12张感受野相关性、时间稀疏性和群体稀疏性对比图
 function files = plot_pcb_shuffle_existing_results(language,results_dir)
 
 if nargin < 1, language = 'english'; end

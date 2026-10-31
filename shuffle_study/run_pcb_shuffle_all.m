@@ -1,4 +1,4 @@
-% 用途：按所选条件、网络规模和重复次数组织训练，支持并行与断点续跑，汇总指标并保存数据和图表。
+% 用途：按所选条件、网络规模和重复次数训练，汇总指标并保存数据和图表。
 function aggregate_summary = run_pcb_shuffle_all(mode,user_options)
 
 if nargin < 1 || isempty(mode)
@@ -9,14 +9,14 @@ if nargin < 2
 end
 
 mode = lower(char(mode));
-if ~ismember(mode,{'quick','paper'})
-    error('Mode must be ''quick'' or ''paper''.');
+if ~strcmp(mode,'paper')
+    error('PCB:UnsupportedMode','Only the paper experiment is supported.');
 end
 
 definitions = pcb_shuffle_conditions();
 options = fill_all_options(user_options,definitions);
 ensure_repo_path_on_client();
-output_root = resolve_output_root(options,mode);
+output_root = resolve_output_root(options);
 selection_tag = make_selection_tag(options);
 scope_tag = make_scope_tag(selection_tag,options.network_scales, ...
     definitions.network_scales);
@@ -196,7 +196,7 @@ run_options.balance_checkpoint_file = fullfile(checkpoint_dir, ...
     [checkpoint_stem '_balance.mat']);
 run_options.resume_training = resume_enabled;
 if resume_enabled && completed_condition_files( ...
-        csv_file,mat_file,condition_id,network_scale,run_index,mode, ...
+        csv_file,mat_file,condition_id,network_scale,run_index, ...
         options.measure_ei_balance,run_options.balance_only)
     if run_options.balance_only
         output.table = table();
@@ -254,7 +254,7 @@ end
 end
 
 function complete = completed_condition_files(csv_file,mat_file, ...
-        condition_id,network_scale,run_index,mode,require_ei_balance, ...
+        condition_id,network_scale,run_index,require_ei_balance, ...
         balance_only)
 complete = false;
 if ~isfile(mat_file) || (~balance_only && ~isfile(csv_file))
@@ -309,11 +309,7 @@ try
         end
     end
     T = readtable(csv_file,'TextType','string');
-    if strcmp(mode,'paper')
-        expected_batches = (0:100:1200)';
-    else
-        expected_batches = (0:2:6)';
-    end
+    expected_batches = (0:100:1200)';
     required = {'condition','network_scale','run_index','batch', ...
         'population_sparseness_E','lifetime_sparseness_E', ...
         'RF_pairwise_correlation_RMS_E','mean_OSI_E','median_OSI_E', ...
@@ -553,19 +549,13 @@ scale_parts = arrayfun(@(cn) sprintf('cn%d',cn),network_scales, ...
 tag = sprintf('%s_%s',selection_tag,strjoin(scale_parts,'_'));
 end
 
-function output_root = resolve_output_root(options,mode)
+function output_root = resolve_output_root(options)
 if ~isempty(options.output_root)
     [~,output_root] = pcb_results_paths(options.output_root);
     return;
 end
-code_dir = fileparts(mfilename('fullpath'));
-study_dir = fullfile(code_dir,'pcb_shuffle_study');
-if strcmp(mode,'quick')
-    output_root = fullfile(study_dir,'cache','quick_validation');
-else
-    paths = pcb_results_paths();
-    output_root = paths.scaling;
-end
+paths = pcb_results_paths();
+output_root = paths.scaling;
 end
 
 function ensure_repo_path_on_client()
@@ -679,11 +669,7 @@ for g = 1:numel(groups)
             metric_titles{m},strrep(group_names{g},'_',' '), ...
             network_scale));
         title_handle.Color = [0.08 0.08 0.08];
-        if strcmp(mode,'paper')
-            xticks(ax,0:100:max_batch);
-        else
-            xticks(ax,unique(T.batch));
-        end
+        xticks(ax,0:100:max_batch);
         xlim(ax,[0 max_batch]);
         ylim(ax,[0 1]);
         grid(ax,'on');
