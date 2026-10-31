@@ -190,11 +190,20 @@ Synaptic traces are used to record recent spiking history, ensuring that weight 
 
 - `shuffle_study/run_ps_factorial_condition.m`：当前消融实验的训练核心。每次动态阈值更新后，把E、I神经元中小于0的阈值截断为0；关闭动态阈值的条件不执行该更新。还保存训练检查点对应的逐神经元自然图像放电率。
 - `shuffle_study/pcb_results_paths.m`：统一计算本项目的结果目录，使用相对位置，不依赖原作者的用户名或盘符。
-- `shuffle_study/run_ae_threshold_floor_training.m`：AE重新训练入口，cn=1、2、3各跑6个种子，使用6个Processes workers；仍调用现有训练核心，每100个batch记录PS、LS、RF相关性RMS。
+- `shuffle_study/run_pcb_shuffle_ei_balance_cn1.m`：当前文件夹提供的cn=1训练入口，运行全部12种条件，每种条件1个种子，并在训练后测量E/I平衡。
 - `run_pcb_shuffle_all.m`、`run_pcb_shuffle_experiment.m`和`run_pcb_shuffle_ei_balance_cn1.m`已同步结果保存路径。原论文的`main.m`未替换；它不是阈值截断实验的入口。
 
-从本项目的`shuffle_study`目录运行`run_ae_threshold_floor_training.m`即可启动AE重复实验。需要Parallel Computing Toolbox；没有工具箱时入口会明确报错，不自动开始串行实验。
+在MATLAB中运行`shuffle_study/run_pcb_shuffle_ei_balance_cn1.m`可启动cn=1的12条件E/I平衡实验。程序优先使用并行计算，工具箱不可用时会提示并改用串行。旧说明中的`run_ae_threshold_floor_training.m`不在当前文件夹内。
 
 新训练结果保存在本项目的`shuffle_study/pcb_shuffle_study/results/01_实验数据/网络规模实验/cn_1`、`cn_2`和`cn_3`中。cn=1的E/I平衡入口保存在`01_实验数据/cn1_EI平衡`中，感受野分析程序能读取这一布局。
 
 本次只同步程序，不复制Nutstore中的结果数据，不启动训练。续跑会检查本项目目录的同名结果和检查点；不要混入未使用阈值截断规则的旧数据。
+
+## 2026-10-31：文件夹改名后的路径与运行说明
+
+- 现有程序目录为 `shuffle_study`、`result analysis`、`avalanche experiment`。程序使用自身位置计算项目路径；文件夹名称中的空格和中文可以保留。
+- `main.m`从它所在目录读取`VanHateren_DoG_small.mat`，无需把MATLAB当前工作目录切换到项目根目录。
+- `shuffle_study`的10个MATLAB文件只在文件开头保留用途说明，内部注释已清理。
+- `plot_pcb_shuffle_existing_results`优先使用本项目的结果目录，缺失时仍兼容原Nutstore和D盘历史目录；外部或改名后的历史结果可通过第二个参数指定，例如`plot_pcb_shuffle_existing_results('english','D:/实验结果/results')`。该程序需要历史cn=1十种子数据以及cn=2、cn=3相关结果。
+- 当前副本未包含`shuffle_study/pcb_shuffle_study/results`训练结果目录。结果分析和历史绘图仍需先训练或补齐所需数据；缺失数据不属于文件夹改名造成的路径错误。
+- 雪崩实验的`input`中已有AD检查点，入口仍为`avalanche experiment/run_ad_avalanche_experiment.m`。

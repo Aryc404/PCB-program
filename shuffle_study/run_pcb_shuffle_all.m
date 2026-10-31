@@ -1,7 +1,5 @@
+% 用途：按所选条件、网络规模和重复次数组织训练，支持并行与断点续跑，汇总指标并保存数据和图表。
 function aggregate_summary = run_pcb_shuffle_all(mode,user_options)
-%RUN_PCB_SHUFFLE_ALL Run each selected condition for the requested cn values.
-% Supports a separate repetition count for each cn value and records final
-% E-cell diagnostics in addition to batch 0:100:1200 metrics.
 
 if nargin < 1 || isempty(mode)
     mode = 'paper';
@@ -231,7 +229,7 @@ clear run_summary
 end
 
 function persist_task_output(output,mode,output_root,network_scale,run_index)
-% Thread workers perform computation only; the MATLAB client writes files.
+
 if ~output.requires_save
     return;
 end
@@ -571,7 +569,7 @@ end
 end
 
 function ensure_repo_path_on_client()
-% Modify the MATLAB path before entering parfor so thread workers inherit it.
+
 code_dir = fileparts(mfilename('fullpath'));
 repo_dir = fileparts(code_dir);
 addpath(repo_dir);
@@ -640,7 +638,7 @@ end
 
 function files = plot_checkpoint_trajectory_figures(T,definitions, ...
         selection_tag,png_dir,mode,network_scale)
-% For one cn value, show every recorded training checkpoint on the x-axis.
+
 if ~strcmp(selection_tag,'all_conditions')
     files = strings(0,1);
     return;
@@ -663,7 +661,7 @@ for g = 1:numel(groups)
     for m = 1:numel(metric_keys)
         fig = figure('Visible','off','Color','white', ...
             'Position',[100 100 920 620]);
-        ax = axes(fig); %#ok<LAXES>
+        ax = axes(fig);
         hold(ax,'on');
         for condition_index = 1:numel(conditions)
             selected = T.condition == conditions(condition_index);
@@ -715,8 +713,7 @@ end
 
 function files = plot_final_size_figures(T,definitions,selection_tag, ...
         png_dir,mode)
-% Only the supervisor's final 12 charts are produced. Selected-condition
-% runs save numerical results only and never create diagnostic figures.
+
 if ~strcmp(selection_tag,'all_conditions')
     files = strings(0,1);
     return;
@@ -739,7 +736,7 @@ for g = 1:numel(groups)
     for m = 1:numel(metric_keys)
         fig = figure('Visible','off','Color','white', ...
             'Position',[100 100 820 600]);
-        ax = axes(fig); %#ok<LAXES>
+        ax = axes(fig);
         hold(ax,'on');
         for condition_index = 1:numel(conditions)
             selected = T.condition == conditions(condition_index);
@@ -813,8 +810,7 @@ end
 end
 
 function remove_stale_aggregate_plots(png_dir,mode)
-% Direct children are standard checkpoint/size plots. Balance plots live
-% in the ei_balance subdirectory and are deliberately left untouched.
+
 files = dir(fullfile(png_dir,sprintf('*_%s.png',mode)));
 for i = 1:numel(files)
     delete(fullfile(files(i).folder,files(i).name));

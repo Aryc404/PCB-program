@@ -1,7 +1,4 @@
-% 作用：统一管理PCB实验结果目录；只返回路径，不创建目录，也不运行实验。
-% 输入：requested_root是指定的保存目录；kind是默认实验类别，通常不用填写。
-% 输出：paths列出整理后的各类目录；output_root是本次实际使用的保存目录。
-% 已知旧目录会自动映射到新位置，自定义目录和quick缓存目录保持原样。
+% 用途：根据本程序位置统一生成PCB结果目录，并将已知旧结果目录映射到整理后的目录。
 function [paths,output_root] = pcb_results_paths(requested_root,kind)
 if nargin < 1, requested_root = ''; end
 if nargin < 2, kind = 'scaling'; end
@@ -11,7 +8,7 @@ paths.scaling = fullfile(paths.root,'01_实验数据','网络规模实验');
 paths.balance = fullfile(paths.root,'01_实验数据','cn1_EI平衡');
 paths.cn1_legacy = fullfile(paths.root,'01_实验数据','cn1_十种子旧版');
 paths.cn3_legacy = fullfile(paths.root,'01_实验数据','cn3_三种子旧版');
-% 新的十种子实验与旧版数据分开，防止新规则续跑时误用旧结果。
+
 paths.reliability = fullfile(paths.root,'01_实验数据','cn1_十种子');
 paths.figures = fullfile(paths.root,'03_汇总图表','网络规模对比12图');
 paths.figures_en = fullfile(paths.root,'03_汇总图表','网络规模对比12图_英文');

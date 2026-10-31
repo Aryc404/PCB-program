@@ -1,5 +1,5 @@
+% 用途：导出训练结束时E神经元的朝向选择性、感受野、放电率和逐刺激响应数据及图像。
 function files = save_pcb_final_diagnostics(result,run_dir,stem)
-%SAVE_PCB_FINAL_DIAGNOSTICS Save final E-cell OSI, RF and firing outputs.
 
 d = result.final_diagnostics;
 csv_dir = fullfile(run_dir,'csv','final_diagnostics');

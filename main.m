@@ -9,6 +9,8 @@
 %% Parameter initialisation
 
 clear; clc; close all;
+project_dir = fileparts(mfilename('fullpath'));
+addpath(project_dir);
 tic;
 
 rng('shuffle');
@@ -125,7 +127,7 @@ rho_Eeta_tE = rho_E*eta_tE; rho_Ieta_tI = rho_I*eta_tI;
 
 fprintf('Weights and other variables initialised... '); toc; tic;
 
-load VanHateren_DoG_small.mat;
+load(fullfile(project_dir,'VanHateren_DoG_small.mat'));
 IMAGES = IMAGES_DoG; clear IMAGES_DoG;
 
 fprintf('Image dataset loaded... '); toc; tic;

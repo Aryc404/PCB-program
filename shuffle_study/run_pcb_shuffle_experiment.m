@@ -1,16 +1,6 @@
+% 用途：运行指定的单个或多个PCB消融条件，配置训练与评估参数，调用仿真核心并保存CSV和MAT结果。
 function summary = run_pcb_shuffle_experiment(mode, inhibitory_selection, ...
         homeostatic_selection, user_options)
-%RUN_PCB_SHUFFLE_EXPERIMENT Main runner for the PCB A--G experiment.
-%
-% Run one selected condition:
-%   run_pcb_shuffle_experiment('paper','A','D')
-%
-% Validate every A--G combination in Quick mode:
-%   run_pcb_shuffle_experiment('quick','ALL','ALL')
-%
-% Change only inhibitory_selection (A/B/C) and homeostatic_selection
-% (D/E/F/G) to activate another condition. Definitions live exclusively
-% in pcb_shuffle_conditions.m.
 
 if nargin < 1 || isempty(mode)
     mode = 'paper';
@@ -322,9 +312,7 @@ stem = sprintf('pcb_shuffle_%s_%s_cn%d_run%02d', ...
 if ~isempty(T)
     writetable(T,fullfile(csv_dir,[stem '.csv']));
 end
-% Thread-based workers cannot write Version 7.3 MAT-files. The result is
-% small because the formal run stores only checkpoint metrics, so -v7 is
-% sufficient and works on both thread- and process-based workers.
+
 save(fullfile(mat_dir,[stem '.mat']),'result','-v7');
 if isfield(result,'final_diagnostics')
     save_pcb_final_diagnostics(result,fileparts(csv_dir),stem);
@@ -409,7 +397,7 @@ if any(sum(W,2) > bound + 1e-8)
 end
 end
 
-function plot_condition_trajectory(result,output_file) %#ok<DEFNU>
+function plot_condition_trajectory(result,output_file)
 dark = [0.04 0.14 0.25];
 colors = lines(4);
 fig = figure('Color','w','Visible','off','Position',[80 80 1350 760]);
@@ -478,7 +466,7 @@ exportgraphics(fig,output_file,'Resolution',240,'BackgroundColor','white');
 close(fig);
 end
 
-function plot_rf_endpoints(result,output_file) %#ok<DEFNU>
+function plot_rf_endpoints(result,output_file)
 input_side = round(sqrt(result.cfg.N_pixels));
 initial_rf = make_rf_mosaic(double(result.RF_E(:,:,1)),input_side);
 final_rf = make_rf_mosaic(double(result.RF_E(:,:,end)),input_side);
@@ -525,7 +513,7 @@ red = [ones(red_count,1) linspace(1,0,red_count)' ...
 cmap = [blue;red];
 end
 
-function plot_final_comparison(results,conditions,output_file) %#ok<DEFNU>
+function plot_final_comparison(results,conditions,output_file)
 n = numel(results);
 labels = strings(n,1);
 ps = nan(n,1); ls = nan(n,1); rf = nan(n,1);

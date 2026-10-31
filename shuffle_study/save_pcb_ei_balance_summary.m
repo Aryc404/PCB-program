@@ -1,10 +1,7 @@
+% 用途：汇总训练后的宽松与紧密E/I平衡指标，导出数值表、输入电流示例和各条件对比图。
 function outputs = save_pcb_ei_balance_summary(all_task_outputs, ...
         network_scales,condition_ids,runs_per_scale,csv_dir,png_dir, ...
         stem,mode)
-%SAVE_PCB_EI_BALANCE_SUMMARY Save final-only Fig. 8/9-style diagnostics.
-
-% Raw time series remain inside each condition MAT file as result.ei_balance.
-% This function writes compact numerical summaries and condition-wise plots.
 
 records = collect_records(all_task_outputs,network_scales, ...
     condition_ids,runs_per_scale);
@@ -32,15 +29,15 @@ for condition_index = 1:numel(condition_ids)
     condition_id = char(condition_ids(condition_index));
     selected = records(strcmp({records.condition},condition_id));
     outputs.plot_files(end+1,1) = plot_example_traces( ...
-        selected,plot_dir,mode); %#ok<AGROW>
+        selected,plot_dir,mode);
     outputs.plot_files(end+1,1) = plot_loose_errorbars( ...
-        selected,plot_dir,mode); %#ok<AGROW>
+        selected,plot_dir,mode);
     outputs.plot_files(end+1,1) = plot_loose_scatter( ...
-        selected,plot_dir,mode); %#ok<AGROW>
+        selected,plot_dir,mode);
     outputs.plot_files(end+1,1) = plot_tight_curves( ...
-        selected,plot_dir,mode); %#ok<AGROW>
+        selected,plot_dir,mode);
     outputs.plot_files(end+1,1) = plot_tight_population( ...
-        selected,plot_dir,mode); %#ok<AGROW>
+        selected,plot_dir,mode);
 end
 end
 
@@ -67,7 +64,7 @@ for scale_index = 1:numel(network_scales)
         record.network_scale = result.cfg.network_scale;
         record.run_index = outputs{output_index}.run_index;
         record.balance = result.ei_balance;
-        records(end+1,1) = record; %#ok<AGROW>
+        records(end+1,1) = record;
     end
 end
 [~,order] = sortrows([[records.network_scale]' [records.run_index]']);

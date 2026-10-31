@@ -1,18 +1,5 @@
+% 用途：定义A/B/C抑制机制与D/E/F/G稳态机制、随机种子和网络规模，生成12种消融实验条件。
 function output = pcb_shuffle_conditions(inhibitory_code, homeostatic_code)
-%PCB_SHUFFLE_CONDITIONS Central definitions for conditions A--G.
-%   definitions = pcb_shuffle_conditions()
-%   condition = pcb_shuffle_conditions('A','D')
-%
-% Inhibitory conditions:
-%   A: I->E transmission ON,  I->E plasticity ON
-%   B: I->E transmission ON,  I->E plasticity OFF
-%   C: I->E transmission OFF, I->E plasticity OFF
-%
-% Homeostatic conditions:
-%   D: adaptive thresholds ON,  L1 normalization ON
-%   E: adaptive thresholds ON,  L1 normalization OFF
-%   F: adaptive thresholds OFF, L1 normalization ON
-%   G: adaptive thresholds OFF, L1 normalization OFF
 
 definitions.inhibitory = struct( ...
     'code', {'A','B','C'}, ...
@@ -33,24 +20,11 @@ definitions.homeostatic = struct( ...
     'threshold_enabled', {true,true,false,false}, ...
     'l1_normalization_enabled', {true,false,true,false});
 
-% Reliability repetitions disabled: every condition x cn runs once.
-% Previous 10-seed configuration (kept here only for possible restoration):
-% definitions.seeds.training = ...
-%     [20250718 20250729 20250811 20250823 20250907, ...
-%      20250919 20251003 20251017 20251101 20251113];
-% definitions.seeds.eval_patch = 12025 + (0:9)*1000;
-% definitions.seeds.eval_dynamics = 22025 + (0:9)*1000;
-% definitions.seeds.eval_grating = 1202603 + (0:9)*1000;
-
-% One fixed RNG configuration is retained solely for reproducibility.
 definitions.seeds.training = 20250718;
 definitions.seeds.eval_patch = 12025;
 definitions.seeds.eval_dynamics = 22025;
 definitions.seeds.eval_grating = 1202603;
 
-% Ten matched RNG configurations for the cn=1 reliability experiment.
-% Every condition uses the same seed set so differences can be compared
-% without confounding condition identity with random initialization.
 definitions.reliability_seeds.training = ...
     [20250718 20250729 20250811 20250823 20250907, ...
      20250919 20251003 20251017 20251101 20251113];
@@ -61,11 +35,8 @@ definitions.reliability_seeds.eval_grating = 1202603 + (0:9)*1000;
 definitions.valid_inhibitory_codes = ["A","B","C"];
 definitions.valid_homeostatic_codes = ["D","E","F","G"];
 
-% Network-size multipliers from PCB Methods 2.8.5.
 definitions.network_scales = [1 2 3 4];
 
-% The four condition groups in the supervisor's final 12-chart layout.
-% Each group produces one chart for LS, PS and RF correlation.
 definitions.figure_groups = { ...
     ["AD","AE","AF","AG"], ...
     ["AD","BD","CD"], ...

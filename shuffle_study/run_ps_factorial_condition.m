@@ -1,7 +1,5 @@
+% 用途：执行单个消融条件的脉冲网络训练、突触学习、阈值与L1更新，保存检查点并按配置测量稀疏性、感受野和E/I平衡。
 function result = run_ps_factorial_condition(mode, condition, options)
-%RUN_PS_FACTORIAL_CONDITION Run one revised PS factorial condition.
-% This is the common simulation core used by the revised exp1/exp2 runner.
-% Evaluation never updates weights or thresholds.
 
 if nargin < 1 || isempty(mode)
     mode = 'paper';
@@ -19,8 +17,7 @@ cfg = apply_config_overrides(cfg, options);
 
 code_dir = fileparts(mfilename('fullpath'));
 repo_dir = fileparts(code_dir);
-% Thread workers cannot modify the MATLAB path. The aggregate runner adds
-% repo_dir on the client before parfor; direct serial calls still add it here.
+
 if exist('generate_image_patches','file') ~= 2
     addpath(repo_dir);
 end
@@ -75,9 +72,6 @@ for batch = start_batch:cfg.N_n
     learn_weights = batch > cfg.N_q;
     stats = train_one_batch(state, IMAGES, cfg, condition, learn_weights);
 
-    % 只在正式训练的最后一个 batch 保存逐神经元自然图像放电率。
-    % stats.R_E/R_I 是每个神经元在本 batch 的 100 张自然图像 patch 上
-    % 平均得到的脉冲数；除以单张刺激时长 cfg.T 后转换为 Hz。
     if batch == cfg.N_n
         result.final_training_rate_E_Hz = single(stats.R_E/cfg.T);
         result.final_training_rate_I_Hz = single(stats.R_I/cfg.T);
@@ -235,9 +229,6 @@ cfg.N_X = cfg.N_pixels * network_scale;
 cfg.N_E = cfg.N_E * network_scale;
 cfg.N_I = cfg.N_I * network_scale;
 
-% PCB Methods 2.8.5: L1 norms scale as sqrt(N). Equation 18 then
-% requires the corresponding synaptic learning rates to scale by the
-% same ratio. Threshold learning rates and all other parameters stay fixed.
 scale = sqrt(network_scale);
 l1_fields = {'L1_EX','L1_EE','L1_EI','L1_IX','L1_IE','L1_II'};
 eta_fields = {'eta_EX','eta_EE','eta_EI','eta_IX','eta_IE','eta_II'};
@@ -250,8 +241,7 @@ end
 end
 
 function condition = normalize_condition(condition)
-% Accept the former Exp2 fields while the new PCB-shuffle runner uses the
-% explicit transmission/plasticity/homeostasis fields.
+
 if ~isfield(condition, 'inhibitory_transmission_enabled')
     if ~isfield(condition, 'inhibition_enabled')
         error('Condition must define inhibitory transmission.');
@@ -277,9 +267,7 @@ end
 end
 
 function IMAGES = load_training_images(repo_dir)
-% Reuse the immutable image dataset across conditions on each MATLAB
-% process/parallel worker. This removes repeated MAT-file reads without
-% changing patch generation or any random-number stream.
+
 persistent cached_repo cached_images
 if isempty(cached_images) || ~strcmp(cached_repo,repo_dir)
     data = load(fullfile(repo_dir,'VanHateren_DoG_small.mat'), ...
@@ -438,9 +426,7 @@ checkpoint.final_batch = cfg.N_n;
 checkpoint.batch = batch;
 checkpoint.state = state;
 checkpoint.rng_state = rng;
-% 将当前训练 batch 的逐神经元自然图像放电率与网络状态一起保存。
-% 这使第 1200 个 batch 的散点图能够直接读取真实训练活动，而不需要
-% 用冻结网络的额外测试刺激代替。
+
 checkpoint.training_rate_E_Hz = single(stats.R_E/cfg.T);
 checkpoint.training_rate_I_Hz = single(stats.R_I/cfg.T);
 filename = training_checkpoint_path(options,batch);
@@ -644,9 +630,9 @@ end
 end
 
 function balance = measure_ei_balance(state,IMAGES,cfg,condition,options)
-% Measure Fig. 8/9-style balance after training without changing the state.
+
 training_rng = rng;
-cleanup_rng = onCleanup(@() rng(training_rng)); %#ok<NASGU>
+cleanup_rng = onCleanup(@() rng(training_rng));
 
 RF_E = effective_receptive_fields(state.W_EX,cfg);
 [stage,balance] = restore_balance_checkpoint(cfg,condition,options);
@@ -961,8 +947,7 @@ end
 
 function traces = simulate_balance_shadow( ...
         state,R_X,cfg,condition,target_neurons)
-% The full network spikes normally. Only the parallel voltage observers omit
-% threshold, reset and V_min, preserving the trained recurrent dynamics.
+
 n_trials = size(R_X,2);
 target_neurons = target_neurons(:);
 if numel(target_neurons) ~= n_trials
@@ -1226,8 +1211,7 @@ R_XDT = R_X*cfg.dt;
 V_E = zeros(cfg.N_E,cfg.N_b);
 V_I = zeros(cfg.N_I,cfg.N_b);
 exp_m = exp(-cfg.dt/cfg.tau_m);
-% 所有条件均记录逐神经元训练放电数。阈值关闭的条件也需要该数据，
-% 用于绘制第 1200 个自然图像训练 batch 的 E/I 放电率散点图。
+
 track_rates = true;
 use_inhibition = condition.inhibitory_transmission_enabled;
 use_inhibitory_plasticity = condition.inhibitory_plasticity_enabled;
@@ -1343,8 +1327,7 @@ W = W + dW;
 if use_l1
     W = normalize_group(W,upper_bound,allow_self);
 else
-    % Removing L1 normalization must not violate the sign convention or
-    % introduce recurrent self-connections.
+
     W(W < 0) = 0;
     if ~allow_self && size(W,1) == size(W,2)
         W(1:size(W,1)+1:end) = 0;
@@ -1363,7 +1346,7 @@ dtheta_E = min(dtheta_E,cfg.rho_E*cfg.eta_tE*scale);
 dtheta_I = min(dtheta_I,cfg.rho_I*cfg.eta_tI*scale);
 state.theta_E = state.theta_E + dtheta_E;
 state.theta_I = state.theta_I + dtheta_I;
-% 每次阈值更新后立即施加生理下限：E、I 阈值均不得小于 0。
+
 state.theta_E(state.theta_E < 0) = 0;
 state.theta_I(state.theta_I < 0) = 0;
 end

@@ -1,9 +1,7 @@
-% PCB-shuffle Loose/Tight E/I-balance experiment: cn=1, all 12 conditions.
-% Training metrics are not evaluated. Full restart checkpoints are saved at
-% batches 400, 800 and 1200; balance is measured only after batch 1200.
-
+% 用途：启动cn=1的全部12种消融条件训练，每种条件运行一次，在第400、800、1200批保存检查点并测量最终E/I平衡。
 simulation_mode = 'paper';
 code_dir = fileparts(mfilename('fullpath'));
+addpath(code_dir);
 
 options = struct();
 options.inhibitory_selection = 'ALL';

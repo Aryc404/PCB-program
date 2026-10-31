@@ -1,36 +1,45 @@
-function files = plot_pcb_shuffle_existing_results(language)
-%PLOT_PCB_SHUFFLE_EXISTING_RESULTS Create the 12 requested cn=1--3 plots.
-% cn=1 and repeated cn=2 runs use scatter, mean and sample SD.
-% cn=2 single_run is used only when no runXX file exists; cn=3 uses the
-% latest available result.
+% 用途：读取cn=1至3的历史结果，绘制12张感受野相关性、时间稀疏性和群体稀疏性对比图；第二个参数可指定结果目录。
+function files = plot_pcb_shuffle_existing_results(language,results_dir)
 
 if nargin < 1, language = 'english'; end
 chinese = strcmpi(language,'chinese');
 
-code_dir = fileparts(mfilename('fullpath'));
-% 优先读取当前整理文件夹内的结果；如果未复制历史结果，
-% 则直接读取原工程，避免在C盘重复保存数百MB的CSV/MAT和检查点。
-candidate_results_dirs = {
-    fullfile(code_dir,'pcb_shuffle_study','results')
-    'C:\Users\吉毅诚\Nutstore\1\bio-spiking-v1-learning-main\population_sparseness_study\pcb_shuffle_study\results'
-    'D:\bio-spiking-v1-learning-main\population_sparseness_study\pcb_shuffle_study\results'
-    };
+paths = pcb_results_paths();
+use_default_results = nargin < 2 || strlength(string(results_dir)) == 0;
+if use_default_results
+    results_dir = paths.root;
+else
+    results_dir = char(results_dir);
+end
 required_relative_file = fullfile('archive','legacy_cn1_10seeds', ...
     'final_statistics','csv', ...
     'pcb_shuffle_reliability_cn1_10seeds_paper_final_raw.csv');
 organized_relative_file = fullfile('01_实验数据','cn1_十种子旧版', ...
     'final_statistics','csv', ...
     'pcb_shuffle_reliability_cn1_10seeds_paper_final_raw.csv');
-available = find(cellfun(@(folder) ...
-    isfile(fullfile(folder,required_relative_file)) || ...
-    isfile(fullfile(folder,organized_relative_file)), ...
-    candidate_results_dirs),1,'first');
-if isempty(available)
-    error(['Cannot find the PCB result directory. Keep the original project ' ...
-        'available or copy its pcb_shuffle_study/results directory locally.']);
+if use_default_results
+    candidate_results_dirs = {results_dir, ...
+        fullfile(getenv('USERPROFILE'),'Nutstore','1', ...
+        'bio-spiking-v1-learning-main','population_sparseness_study', ...
+        'pcb_shuffle_study','results'), ...
+        fullfile('D:\','bio-spiking-v1-learning-main', ...
+        'population_sparseness_study','pcb_shuffle_study','results')};
+    available = find(cellfun(@(folder) ...
+        isfile(fullfile(folder,required_relative_file)) || ...
+        isfile(fullfile(folder,organized_relative_file)), ...
+        candidate_results_dirs),1,'first');
+    if ~isempty(available)
+        results_dir = candidate_results_dirs{available};
+    end
 end
-results_dir = candidate_results_dirs{available};
-% 可读取整理后的原项目，也可读取仍采用原布局的独立复现数据。
+if ~isfile(fullfile(results_dir,required_relative_file)) && ...
+        ~isfile(fullfile(results_dir,organized_relative_file))
+    error('PCB:MissingPlotResults', ...
+        ['Cannot find the historical cn=1 ten-seed results in: %s\n' ...
+        'Restore the required results, or pass their results directory as ' ...
+        'the second argument to plot_pcb_shuffle_existing_results.'],results_dir);
+end
+
 organized = isfile(fullfile(results_dir,organized_relative_file));
 if organized
     reliability_file = fullfile(results_dir,organized_relative_file);
@@ -98,7 +107,7 @@ for g = 1:numel(groups)
     for m = 1:numel(metrics)
         fig = figure('Visible','off','Color','white', ...
             'Position',[100 100 900 650]);
-        ax = axes(fig); %#ok<LAXES>
+        ax = axes(fig);
         hold(ax,'on');
 
         for c = 1:numel(group_conditions)

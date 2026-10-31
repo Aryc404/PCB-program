@@ -1,10 +1,6 @@
+% 用途：计算响应矩阵的Treves–Rolls稀疏性、逐刺激稀疏性和静默比例，可选择有限群体校正。
 function [mean_ps, ps_each, silent_fraction] = modified_treves_rolls( ...
         response, finite_population_correction)
-%MODIFIED_TREVES_ROLLS Population sparseness used in Ruslim et al. (2025).
-% response is neurons x stimuli. A completely silent stimulus has undefined
-% sparseness and is therefore reported as NaN instead of being called sparse.
-% Finite-population correction divides by (1-1/N), where N is the number
-% of rows. It is enabled by default for the current PCB experiments.
 
 if nargin < 2 || isempty(finite_population_correction)
     finite_population_correction = true;
